@@ -900,7 +900,7 @@ int main(int argc, char *argv[])
 		// -s means we are specifying a objective/scoring function
 		printf("Setting scoring function to %s\n", optarg);
 		for(int i = 0; i < numScoreOpts; i++){
-		    printf("%s vs %s\n", scoreOpts[i].name, optarg);
+		    // Hopefully find a matching scoring function name
 		    if(strstr(optarg, scoreOpts[i].name) != NULL){
 			pCommunityScore = scoreOpts[i].func;
 			printf("NOTE: Using score %s\n", scoreOpts[i].name);
@@ -908,7 +908,7 @@ int main(int argc, char *argv[])
 		    }
 		}
 		if(pCommunityScore == NULL){
-		    printf("ERROR: Provided %s does not exist.\n", optarg);
+		    printf("ERROR: Provided scoring function name: %s does not exist.\n", optarg);
 		    exit(1);
 		}
 		break;
