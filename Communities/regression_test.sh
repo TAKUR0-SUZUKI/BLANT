@@ -2,7 +2,8 @@
 
 # Currently only supporting one edgelist at a time
 if [ $# -eq 0 ]; then
-    echo "Please specify community to run on as an argument." 
+    echo "Please specify test file to run on as an argument." 
+    echo "The test file should be formatted as: NETWORK OBJECTIVE_FUNCTION EXPECTED_SCORE ACCEPTABLE_THRESHOLD"
     echo "You may optionally specify:"
     echo "			      1) -s: Set a scoring function. Default is HayesScore (refer to measures.c to see what is implemented)"
     echo "			      2) -n: Set the number of tests to run with. Default is 10 tests."
@@ -16,16 +17,38 @@ EXPECTED=""
 NUMRUNS=10
 EDGELIST=$1
 SCORINGFUNC="HayesScore"
+TESTFILEMODE=0
+ERRS=0
 shift
 echo "Running regression tests..."
 
-while getopts "n:s:e:" flag; do
+while getopts "n:s:e:t" flag; do
     case "${flag}" in
 	n) echo "Running $OPTARG" times ; NUMRUNS=$OPTARG;;
 	e) echo "Expected score = $OPTARG" ; EXPECTED="Final score = $OPTARG";;
 	s) echo "Setting scoring function to $OPTARG"; SCORINGFUNC=$OPTARG;;
+	t) echo "Running in test file mode"; TESTFILEMODE=1;;
     esac
 done
+
+if [[ $TESTFILEMODE == 1 ]]; then
+    while read -r NETWORK OBJECTIVE_FUNC MEAN FOUR_SIGMA; do
+	echo "Run test $NETWORK $OBJECTIVE_FUNC $MEAN $FOUR_SIGMA"
+	OUTPUT=$(./a.out "$NETWORK" -s "$OBJECTIVE_FUNC" 2>/dev/null)
+	ACTUAL=$(echo "$OUTPUT" | grep "Final score" | awk '{print $NF}')
+	LOW=$(echo "$MEAN - $FOUR_SIGMA" | bc -l)
+	HIGH=$(echo "$MEAN + $FOUR_SIGMA" | bc -l)
+	if (( $(echo "$ACTUAL >= $LOW && $ACTUAL <= $HIGH" | bc -l) )); then
+	    echo "$NETWORK $OBJECTIVE_FUNC PASS"
+	else
+	    echo "FATAL: does not match $ACTUAL"
+	    ((ERRS++))
+	fi
+    done < "$EDGELIST"
+    exit $ERRS
+fi
+
+
 
 if [[ $EXPECTED != "" ]]; then
     echo "Set expected score to $2"

@@ -22,9 +22,10 @@ double NewmanAndGirvan(PARTITION * P, COMMUNITY * C, int fakeN){
     // Technically faster rejects don't work for this because we need actual information 
     // for the edges, so I had to make a work around for this...
    
-    int edgeCount = CommunityEdgeCount(C);  
-    int firstTerm = edgeCount / P->G->n;
-    int secondTerm = (edgeCount + CommunityEdgeOutwards(P, C)) / (2 * P->G->n);
+    double edgeCount = CommunityEdgeCount(C);  
+    double firstTerm = edgeCount / P->G->n;
+    double secondTerm = (edgeCount + CommunityEdgeOutwards(P, C)) / (2 * P->G->n);
+    //printf("edgeCount = %f, firstTerm = %f, secondTerm = %f\n", edgeCount, firstTerm, secondTerm); 
     return firstTerm - (secondTerm * secondTerm);
 }
 

@@ -19,9 +19,9 @@
 
 #define VERBOSE 0 // 0 = no noisy outpt, 3 = lots, 1..2 is intermediate
 #define DEBUG 0
-#define MOVE_ONLY 1 // Limit perturb to only move 
-#define PRINT_ALL_COMMUNITIES 1 // Prints out all the community info at the end of the program execution
-
+#define MOVE_ONLY 0 // Limit perturb to only move 
+#define PRINT_ALL_COMMUNITIES 0 // Prints out all the community info at the end of the program execution
+#define PRINT_ITERS 0 // Prints out iters per second on terminal (Note: Is quite expensive)
 /************************** Community routines *******************/
 
 double (*pCommunityScore)(PARTITION * P, COMMUNITY * C, int fakeN) = NULL;  
@@ -230,33 +230,36 @@ PARTITION *PartitionAlloc(GRAPH *G) {
     P->marked = SetAlloc(G->n); // Marking which ones will be moved (Essentially SET * toMove but in int * format)  
     P->toMove = Calloc(sizeof(int), G->n);    
     P->numMoved = 0; 
+    P->iters = 0;
+    P->clk = clock();
     return P;  
 }
-
-
 
 PARTITION *PartitionAddCommunity(PARTITION *P, COMMUNITY *C) {
 #if VERBOSE > 2 
     printf("Add com %d, Before update, P->n = %d\n", C->id, P->n);
 #endif
     assert(P->n < P->G->n);
-    int i;
-    for(i=0; i<P->G->n; i++){
-	if(!P->C[i]) {
-            P->C[i] = C;
-            P->n++;
-	    int index = 0;
-	    for(int j = 0; j < C->n; ++j){
-		int u = C->nodeSet[j];
-		P->whichCommunity[u] = i;
-		P->whichMember[u] = index;
-		++index;
-	    }
-	    return P;// find empty community slot
-        }
+    int i = P->n;
+    if(!P->C[i]) {
+	P->C[i] = C;
+	P->n++;
+	int index = 0;
+	for(int j = 0; j < C->n; ++j){
+	    int u = C->nodeSet[j];
+	    P->whichCommunity[u] = i;
+	    P->whichMember[u] = index;
+	    ++index;
+	}
+	return P;// find empty community slot
     }
+    else{
+	printf("MEM ERROR: Attempting to write to an existing community???\n");
+	exit(1);
+    } 
     return NULL;
 }
+
 
 PARTITION *PartitionDelCommunity(PARTITION *P, int c){
     COMMUNITY * C = P->C[c];
@@ -490,7 +493,13 @@ double PerturbPartition(foint f) {
     double before = P->total; 
     P->numMoved = 0;    
 
-    #if DEBUG
+#if PRINT_ITERS
+    double elapsed = (double)(clock() - P->clk) / CLOCKS_PER_SEC;
+    double iters_per_sec = P->iters++ / elapsed; 
+    printf("\riters per sec: %-10.2f\t",iters_per_sec);
+#endif
+    
+#if DEBUG
     printf("Before perturb\n");
     for(int i = 0; i < P->n; ++i){ 
     	COMMUNITY * temp = P->C[i];
@@ -766,6 +775,7 @@ void SAR(int iters, foint f){
     PARTITION * P = f.v;
     int fail = 1, in, out, best_id = -1;
     double ground = 0, withInfo, stored = 0, best = -1, totalGround = 0, totalStored = 0;
+    printf("\n");
     for(int i = 0; i < P->n; ++i){
 	COMMUNITY * com = P->C[i];
 	in = CommunityEdgeCount(com);
@@ -1005,7 +1015,7 @@ int main(int argc, char *argv[])
 	    C->edgesIn = CommunityEdgeCount(C);
 	    C->edgesOut = CommunityEdgeOutwards(P, C);
 	    double s = pCommunityScore(P, C, C->n); 
-	    printf("Score = %f, edgesIn %d, edgesOut %d\n", s, C->edgesIn, C->edgesOut);
+	    //printf("Score = %f, edgesIn %d, edgesOut %d\n", s, C->edgesIn, C->edgesOut);
 	    C->score = s;
 	    P->total += s; 
 	}
@@ -1019,7 +1029,7 @@ int main(int argc, char *argv[])
     foint f;
     f.v = P;
 	
-    SIM_ANNEAL *sa = SimAnnealAlloc(1, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 100*G->n*G->numEdges /*100*/,0,0,SAR);
+    SIM_ANNEAL *sa = SimAnnealAlloc(1, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 1000*G->numEdges /*100*/,0,0,SAR);
     if(G->n==2390 && G->numEdges==16127) {
 	printf("Hmm, this looks like yeast.el/communities.in, using canned schedule\n");
 	SimAnnealSetSchedule(sa, 1.1, 3);
@@ -1055,6 +1065,7 @@ int main(int argc, char *argv[])
 	PrintCommunity(P->C[i]);
     }
 #endif
+    printf("Total time elapsed = %.2f seconds\n", (double)(clock() - P->clk)/ CLOCKS_PER_SEC); 
     PrintAllScores(P);
     PartitionFree(P);
     GraphFree(G);

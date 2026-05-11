@@ -3,6 +3,7 @@
 
 #include "graph.h"
 #include "sets.h"
+#include "time.h"
 
 typedef struct _community {
      int id, n;
@@ -25,7 +26,10 @@ typedef struct _communitySet {
     SET *marked; // Marking which ones will be moved   
     int *toMove; // Marking, but only holds which ones to move instead of marking which nodes in the graph to move 
     int numMoved; // Number of nodes that will be moved
-
+    
+    // Everything below here is just for timing
+    int iters;
+    clock_t clk;
 } PARTITION;
 
 
