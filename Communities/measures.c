@@ -1,35 +1,38 @@
 #include "structs.h"
+#include "measures.h"
 #define TARGET_EDGE_DENSITY 0.5
 // fakeN is the number of nodes inside the community I TELL the measure
 
 // Because of the nature of how I implemented faster rejects, most of the time 
 // its not the actual true number of nodes in the community
 
-double IntraEdgeDensity(COMMUNITY *C, int fakeN){
+double IntraEdgeDensity(PARTITION * P, COMMUNITY *C, int fakeN){
     if(fakeN < 2)
 	return 0;
     return C->edgesIn / (fakeN *(fakeN - 1) / 2.0);
 }
 
-double InterEdgeDensity(COMMUNITY *C, int fakeN){
+double InterEdgeDensity(PARTITION * P, COMMUNITY *C, int fakeN){
     int tot = C->G->n - fakeN;
     //printf("tot = %d, edgesOut = %d\n", tot, edgesOut);
     return (double)C->edgesOut/(fakeN * tot);
 }
 
-double NewmanAndGirvan(COMMUNITY * C, int fakeN){
-    // Eq 15 on Pg 16 on the pdf viewer
+double NewmanAndGirvan(PARTITION * P, COMMUNITY * C, int fakeN){
+    // Technically faster rejects don't work for this because we need actual information 
+    // for the edges, so I had to make a work around for this...
    
-    // TODO: Double check what exactly is needed
-    return 0;
-    //return C->inEdges/C->gDegree - (cDegree/(2.0*gDegree) * cDegree/(2.0*gDegree));
+    int edgeCount = CommunityEdgeCount(C);  
+    int firstTerm = edgeCount / P->G->n;
+    int secondTerm = (edgeCount + CommunityEdgeOutwards(P, C)) / (2 * P->G->n);
+    return firstTerm - (secondTerm * secondTerm);
 }
 
-double Conductance(COMMUNITY * C, int fakeN){
+double Conductance(PARTITION * P, COMMUNITY * C, int fakeN){
      return (double)(C->edgesOut/(C->edgesOut + C->edgesIn));
 }
 
-double HayesScore(COMMUNITY *C, int fakeN){ 
+double HayesScore(PARTITION * P, COMMUNITY *C, int fakeN){ 
 #if DEBUG
     printf("Hayes Com %d, inEdges = %d, C->n = %d\n", C->id, C->edgesIn, fakeN);
 #endif
@@ -51,9 +54,9 @@ double HayesScore(COMMUNITY *C, int fakeN){
     }
 }
 
-double Modularity(COMMUNITY * C, int fakeN){
+double Modularity(PARTITION * P, COMMUNITY * C, int fakeN){
     // TODO: Actually implement modularity
-    return IntraEdgeDensity(C, fakeN);
+    return IntraEdgeDensity(P, C, fakeN);
 }
 
 

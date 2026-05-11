@@ -21,8 +21,8 @@ typedef struct _communitySet {
     int *whichMember; // Within the community, tells at which index the node is located at 
     //SET *common; // In case merge of 2 communities have overlap, record them (Only for useful for overlapping communities)
     double total; // Cumulative score of partition
-    SET *visited; // A set for community update to avoid double counting  
-    SET *marked; // Marking which ones will be moved (Essentially SET * toMove but in int * format)  
+    SET *visited; // A set for community update to avoid double counting (Only used in MoveOneNode)  
+    SET *marked; // Marking which ones will be moved   
     int *toMove; // Marking, but only holds which ones to move instead of marking which nodes in the graph to move 
     int numMoved; // Number of nodes that will be moved
 

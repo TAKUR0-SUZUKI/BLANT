@@ -1,16 +1,20 @@
 #include "structs.h"
 #include "measures.h"
 
+// TODO: Implement a way to tell the program to optimize for max or min
+
 typedef struct 	{
     const char * name;
-    double (*func)(COMMUNITY * C, int fakeN);
+    double (*func)(PARTITION * P, COMMUNITY * C, int fakeN);
+    int optimizingForMax;
 } SCORINGOPTION;
 
 static const SCORINGOPTION scoreOpts[] = { 
-    {"IntraEdgeDensity", IntraEdgeDensity},
-    {"InterEdgeDensity", InterEdgeDensity},
-    {"Conductance", Conductance}, 
-    {"HayesScore", HayesScore}, 
+    {"IntraEdgeDensity", IntraEdgeDensity, 1},
+    {"InterEdgeDensity", InterEdgeDensity, 0},
+    {"Conductance", Conductance, 0}, 
+    {"HayesScore", HayesScore, 1}, 
+    {"NewmanAndGirvan", NewmanAndGirvan, 1},
 };
 
 static const int numScoreOpts = sizeof(scoreOpts) / sizeof(SCORINGOPTION);

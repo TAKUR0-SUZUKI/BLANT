@@ -22,4 +22,5 @@ double PerturbPartition(foint f);
 Boolean MaybeAcceptPerturb(Boolean accept, foint f);
 void HillClimbing(PARTITION *P, int tries);
 void SAR(int iters, foint f);
+
 #endif 
