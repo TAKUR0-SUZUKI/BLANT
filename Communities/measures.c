@@ -15,13 +15,11 @@ double IntraEdgeDensity(PARTITION * P, COMMUNITY *C, int fakeN){
 double InterEdgeDensity(PARTITION * P, COMMUNITY *C, int fakeN){
     int tot = C->G->n - fakeN;
     //printf("tot = %d, edgesOut = %d\n", tot, edgesOut);
-    return (double)C->edgesOut/(fakeN * tot);
+    
+    return (fakeN == 0 || tot == 0) ? 0 : (double)C->edgesOut/(fakeN * tot);
 }
 
 double NewmanAndGirvan(PARTITION * P, COMMUNITY * C, int fakeN){
-    // Technically faster rejects don't work for this because we need actual information 
-    // for the edges, so I had to make a work around for this...
-   
     double edgeCount = CommunityEdgeCount(C);  
     double firstTerm = edgeCount / P->G->n;
     double secondTerm = (edgeCount + CommunityEdgeOutwards(P, C)) / (2 * P->G->n);
@@ -29,8 +27,29 @@ double NewmanAndGirvan(PARTITION * P, COMMUNITY * C, int fakeN){
     return firstTerm - (secondTerm * secondTerm);
 }
 
+double Expansion(PARTITION * P, COMMUNITY * C, int fakeN){
+    // Always does trivial solution of making one big community
+    // Horrible objective function
+    int eOut = CommunityEdgeOutwards(P, C); 
+    int eIn = CommunityEdgeCount(C); 
+    return eOut + eIn == 0 ? 9999999 : (double)(eOut / (eOut + eIn));  
+}
+
+double NormalizedCut(PARTITION * P, COMMUNITY * C, int fakeN){
+    // Also always does trivial solution
+    int eIn = CommunityEdgeCount(C);
+    int eOut = CommunityEdgeOutwards(P, C);
+    int denom1 = 2 * eIn + eOut; 
+    int denom2 = 2 * (P->G->n - eIn) + eOut;
+    if(denom1 == 0 || denom2 == 0){
+	return 99999;
+    }
+    return (double)(eOut / (2 * eIn + eOut)) + (double)(eOut / (2 * (P->G->n - eIn) + eOut));
+}
+
 double Conductance(PARTITION * P, COMMUNITY * C, int fakeN){
-     return (double)(C->edgesOut/(C->edgesOut + C->edgesIn));
+     double denom = C->edgesIn < (P->G->numEdges - C->edgesIn) ? C->edgesIn : P->G->numEdges - C->edgesIn;  
+     return denom == 0 ? 99999 : (double)(C->edgesOut/denom);
 }
 
 double HayesScore(PARTITION * P, COMMUNITY *C, int fakeN){ 

@@ -913,7 +913,7 @@ int main(int argc, char *argv[])
 
     PARTITION *P = PartitionAlloc(G);
     
-    int opt, parRead = 0; 
+    int opt, parRead = 0, dir; 
     while((opt = getopt(argc, argv, "p:s:")) != -1){
 	switch(opt){
 	    case('p'):
@@ -929,7 +929,8 @@ int main(int argc, char *argv[])
 		    // Hopefully find a matching scoring function name
 		    if(strstr(optarg, scoreOpts[i].name) != NULL){
 			pCommunityScore = scoreOpts[i].func;
-			printf("NOTE: Using score %s\n", scoreOpts[i].name);
+			dir = scoreOpts[i].optimizingForMax;
+			printf("NOTE: Using score %s, optimizing dir = %d\n", scoreOpts[i].name, dir);
 			break;
 		    }
 		}
@@ -943,6 +944,7 @@ int main(int argc, char *argv[])
     if(pCommunityScore == NULL){
 	printf("NOTE: Using default HayesScore\n");
 	pCommunityScore = HayesScore;
+	dir = 1;
     }
 
     // If the user does not provide a Partition, create a new one
@@ -1029,7 +1031,7 @@ int main(int argc, char *argv[])
     foint f;
     f.v = P;
 	
-    SIM_ANNEAL *sa = SimAnnealAlloc(1, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 1000*G->numEdges /*100*/,0,0,SAR);
+    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 1000*G->numEdges /*100*/,0,0,SAR);
     if(G->n==2390 && G->numEdges==16127) {
 	printf("Hmm, this looks like yeast.el/communities.in, using canned schedule\n");
 	SimAnnealSetSchedule(sa, 1.1, 3);

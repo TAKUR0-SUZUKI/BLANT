@@ -11,10 +11,12 @@ typedef struct 	{
 
 static const SCORINGOPTION scoreOpts[] = { 
     {"IntraEdgeDensity", IntraEdgeDensity, 1},
-    {"InterEdgeDensity", InterEdgeDensity, 0},
-    {"Conductance", Conductance, 0}, 
+    {"InterEdgeDensity", InterEdgeDensity, -1},
+    {"Conductance", Conductance, -1}, 
     {"HayesScore", HayesScore, 1}, 
     {"NewmanAndGirvan", NewmanAndGirvan, 1},
+    {"Expansion", Expansion, -1},
+    {"NormalizedCut", NormalizedCut, -1},
 };
 
 static const int numScoreOpts = sizeof(scoreOpts) / sizeof(SCORINGOPTION);

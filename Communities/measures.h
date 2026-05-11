@@ -9,7 +9,7 @@ double NewmanAndGirvan(PARTITION * P, COMMUNITY *C, int fakeN);
 double Conductance(PARTITION * P, COMMUNITY *C, int fakeN);
 double HayesScore(PARTITION * P, COMMUNITY *C, int fakeN);
 double Modularity(PARTITION * P, COMMUNITY *C, int fakeN);
-
-extern int _oldCom, _newCom;
-
+double Expansion(PARTITION * P, COMMUNITY * C, int fakeN);
+double NormalizedCut(PARTITION * P, COMMUNITY * C, int fakeN);
+extern int _newCom, _oldCom;
 #endif
