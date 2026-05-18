@@ -1,7 +1,6 @@
 #include "structs.h"
 #include "measures.h"
 
-// TODO: Implement a way to tell the program to optimize for max or min
 
 typedef struct 	{
     const char * name;

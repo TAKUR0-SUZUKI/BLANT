@@ -20,11 +20,12 @@ double InterEdgeDensity(PARTITION * P, COMMUNITY *C, int fakeN){
 }
 
 double NewmanAndGirvan(PARTITION * P, COMMUNITY * C, int fakeN){
-    double edgeCount = CommunityEdgeCount(C);  
+    int edgeCount = CommunityEdgeCount(C);  
     double firstTerm = edgeCount / P->G->n;
     double secondTerm = (edgeCount + CommunityEdgeOutwards(P, C)) / (2 * P->G->n);
-    //printf("edgeCount = %f, firstTerm = %f, secondTerm = %f\n", edgeCount, firstTerm, secondTerm); 
-    return firstTerm - (secondTerm * secondTerm);
+    double ans = firstTerm - (secondTerm * secondTerm); 
+    //printf("edgeCount = %d, firstTerm = %f, secondTerm = %f, ans = %f\n", edgeCount, firstTerm, secondTerm, ans); 
+    return ans;
 }
 
 double Expansion(PARTITION * P, COMMUNITY * C, int fakeN){
@@ -59,19 +60,8 @@ double HayesScore(PARTITION * P, COMMUNITY *C, int fakeN){
     if(fakeN < 2){
 	return 0;
     }
-    double eps = C->edgesIn / ((fakeN * (fakeN-1))/2.0); 
-    if(eps <= TARGET_EDGE_DENSITY){
-    #if VERBOSE > 2
-	printf("eps too low %f\n", eps);
-    #endif
-	return 0;
-    }
-    else{
-    #if VERBOSE > 2
-	printf("Result = %g\n", C->edgesIn * eps * TARGET_EDGE_DENSITY/eps);
-    #endif
-       return C->edgesIn*eps * (TARGET_EDGE_DENSITY/eps); // to down-weight if eps is above the target
-    }
+    return C->edgesIn * C->edgesIn / ((fakeN * (fakeN-1))/2.0);
+    
 }
 
 double Modularity(PARTITION * P, COMMUNITY * C, int fakeN){

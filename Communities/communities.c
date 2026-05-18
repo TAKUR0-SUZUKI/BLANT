@@ -20,7 +20,7 @@
 #define VERBOSE 0 // 0 = no noisy outpt, 3 = lots, 1..2 is intermediate
 #define DEBUG 0
 #define MOVE_ONLY 0 // Limit perturb to only move 
-#define PRINT_ALL_COMMUNITIES 0 // Prints out all the community info at the end of the program execution
+#define PRINT_ALL_COMMUNITIES 1 // Prints out all the community info at the end of the program execution
 #define PRINT_ITERS 0 // Prints out iters per second on terminal (Note: Is quite expensive)
 /************************** Community routines *******************/
 
@@ -374,7 +374,6 @@ static void MergeCommunities(PARTITION *P, int c1, int c2){
     printf("Mg(%d,%d) |%d,%d| ", c1, c2, C1->n, C2->n);
 #endif 
     SaveCommunityInfo(C2, C1);
-    int index = 0;
     for(int i = 0; i < C2->n; i++){
 	int u = C2->nodeSet[i]; 
 	//printf("Marked %d ", u);
@@ -455,7 +454,6 @@ double ScorePartition(Boolean global, foint f){
 	    _newCom = _oldCom;
 	    _oldCom = swap;
 	}
-	int in, out;
 	if(_oldCom != P->n){
 	    // In case oldCom exists, record the change for oldCom
 	    // If it doesn't exist, the only changes of the score will be reflected in newCom
@@ -496,7 +494,7 @@ double PerturbPartition(foint f) {
 #if PRINT_ITERS
     double elapsed = (double)(clock() - P->clk) / CLOCKS_PER_SEC;
     double iters_per_sec = P->iters++ / elapsed; 
-    printf("\riters per sec: %-10.2f\t",iters_per_sec);
+    printf("\r%-10.2f\t",iters_per_sec);
 #endif
     
 #if DEBUG
@@ -532,29 +530,7 @@ double PerturbPartition(foint f) {
     assert(comNums);
 #endif
 
-    /*
-      Set a number of threads to run
-      Choose which communities to lock
-      Limited to unix for now
     
-    // Call only once???
-    pthread_t threads[num_threads];
-    for(int i = 0; i < num_threads; ++i){
-    #if MOVE_ONLY
-	int choice = 0;
-    #else
-	int choice = drand48() * 3;
-    #endif
-
-    
-    1) Choose a move
-    2) Lock relevant communities (Just put the ID's into a set and check)
-    3) Join 
-
-
-	pthread_create(&threads[i], NULL, );
-    }
-    */
 
     #if MOVE_ONLY
 	int choice = 0;
@@ -614,8 +590,7 @@ Boolean MaybeAcceptPerturb(Boolean accept, foint f) {
     printf("Accept? %d\n", accept);
 #endif    
     PARTITION * P = (PARTITION *) f.v;
-    double before = P->total;
-    
+        
     COMMUNITY * newCom = NULL;
     COMMUNITY * oldCom = NULL;
 
@@ -740,7 +715,9 @@ Boolean MaybeAcceptPerturb(Boolean accept, foint f) {
 #if VERBOSE > 0   
     printf("Current total = %f\n\n", P->total);
 #endif
-    
+#if DEBUG
+    SAR(0, f);
+#endif
     return accept;
 }
 
@@ -774,7 +751,7 @@ void SAR(int iters, foint f){
 
     PARTITION * P = f.v;
     int fail = 1, in, out, best_id = -1;
-    double ground = 0, withInfo, stored = 0, best = -1, totalGround = 0, totalStored = 0;
+    double ground = 0, stored = 0, best = -999999, totalGround = 0, totalStored = 0;
     printf("\n");
     for(int i = 0; i < P->n; ++i){
 	COMMUNITY * com = P->C[i];
@@ -795,7 +772,7 @@ void SAR(int iters, foint f){
 	    fail = 0;
 	    printf("Com %d edgesOut ERROR: ground %d vs stored %d\n", i, out, com->edgesOut);
 	}
-#if DEBUG
+#if 0
 	ground = pCommunityScore(P, com, com->n);
 	if(fabs(ground - com->score) > 0.001){
 	    printf("Com %d ERROR: Ground score %g, stored score %g\n", i, ground, com->score);
@@ -803,12 +780,12 @@ void SAR(int iters, foint f){
 	}
 	totalStored += com->score;
 	totalGround += ground;
-	#endif
+#endif
     }
-#if DEBUG
+#if 0
     printf("P->Total %g, totalStored %g, totalGround %g\n", P->total, totalStored, totalGround);
 #endif
-#if DEBUG
+#if 0
     assert(fabs(P->total - totalStored) < 0.001);
     assert(fabs(P->total - totalGround) < 0.001);
     assert(P->total >= 0);
@@ -820,7 +797,7 @@ void SAR(int iters, foint f){
 	exit(1);
     }
 	
-    printf("\tBest: Com %d, with n %d, score %g  \tP->n = %d, Total score = %g", best_id, P->C[best_id]->n, best, P->n, P->total);
+    printf("\tP->n = %d Best: Com %d, with n %d, score %g  \tTotal score = %g", P->n, best_id, P->C[best_id]->n, best, P->total);
 }
 
 // Assumes the P is already properly allocated
@@ -832,7 +809,7 @@ void PartitionRead(FILE * fp, PARTITION * P){
     SET * checkAll = SetAlloc(P->G->n);
     while(fgets(line, sizeof(line), fp)){
 	line[strcspn(line, "\n")] = '\0';	
-	int len = strlen(line);	
+		
 	char *token = strtok(line, " ");
 	COMMUNITY * C = CommunityAlloc(P->G, numCom++);
 	
@@ -900,7 +877,7 @@ int main(int argc, char *argv[])
     
     pCommunityScore = NULL;
             
-    int i, j;
+    int i;
     srand48(GetFancySeed(false));
 
     Boolean sparse=maybe, supportNames = true;
@@ -913,7 +890,7 @@ int main(int argc, char *argv[])
 
     PARTITION *P = PartitionAlloc(G);
     
-    int opt, parRead = 0, dir; 
+    int opt, parRead = 0, dir = 1; 
     while((opt = getopt(argc, argv, "p:s:")) != -1){
 	switch(opt){
 	    case('p'):
@@ -942,8 +919,8 @@ int main(int argc, char *argv[])
 	}
     } 
     if(pCommunityScore == NULL){
-	printf("NOTE: Using default HayesScore\n");
-	pCommunityScore = HayesScore;
+	printf("NOTE: Using default Conductance\n");
+	pCommunityScore = Conductance;
 	dir = 1;
     }
 
@@ -1031,7 +1008,7 @@ int main(int argc, char *argv[])
     foint f;
     f.v = P;
 	
-    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 1000*G->numEdges /*100*/,0,0,SAR);
+    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 500*G->numEdges /*100*/,0,0,SAR);
     if(G->n==2390 && G->numEdges==16127) {
 	printf("Hmm, this looks like yeast.el/communities.in, using canned schedule\n");
 	SimAnnealSetSchedule(sa, 1.1, 3);
@@ -1045,8 +1022,8 @@ int main(int argc, char *argv[])
     int nodes = 0, biggest = 0, num, which=-1;
     for(int j = 0; j < P->n; ++j){
 	num = P->C[j]->n;
-	int inEdges = CommunityEdgeCount(P->C[j]);
-	printf("Com %d has %d nodes, %d edges, with edge density %g\n", j, num, inEdges, inEdges/(num*(num-1)/2.0));
+	//int inEdges = CommunityEdgeCount(P->C[j]);
+	//printf("Com %d has %d nodes, %d edges, with edge density %g\n", j, num, inEdges, inEdges/(num*(num-1)/2.0));
 	nodes += num;
 	if(HayesScore(P, P->C[j], P->C[j]->n) && num > biggest) {
 	    biggest = num;
@@ -1065,6 +1042,7 @@ int main(int argc, char *argv[])
     printf("\n Start ALL COMMUNITIES\n");
     for(int i = 0; i < P->n; ++i){
 	PrintCommunity(P->C[i]);
+	printf("\n");
     }
 #endif
     printf("Total time elapsed = %.2f seconds\n", (double)(clock() - P->clk)/ CLOCKS_PER_SEC); 
