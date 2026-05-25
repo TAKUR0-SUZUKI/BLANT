@@ -47,9 +47,14 @@ double NormalizedCut(PARTITION * P, COMMUNITY * C, int fakeN){
     return (double)(eOut / (2 * eIn + eOut)) + (double)(eOut / (2 * (P->G->n - eIn) + eOut));
 }
 
+double CPM(PARTITION * P, COMMUNITY * C, int fakeN){
+    return C->edgesIn - 0.5 * (fakeN * (fakeN - 1)) / 2.0;
+}
+
 double Conductance(PARTITION * P, COMMUNITY * C, int fakeN){
     int denom = 2 * C->edgesIn + C->edgesOut; // Just the sum of degree of all nodes 
     if(denom == 0){
+	// return infinity if denom is 0
 	return 99999;
     }
     double ans = (double)(C->edgesOut/denom);

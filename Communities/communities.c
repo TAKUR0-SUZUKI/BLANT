@@ -20,7 +20,7 @@
 #define VERBOSE 0 // 0 = no noisy outpt, 3 = lots, 1..2 is intermediate
 #define DEBUG 0
 #define MOVE_ONLY 0 // Limit perturb to only move 
-#define PRINT_ALL_COMMUNITIES 0 // Prints out all the community info at the end of the program execution
+#define PRINT_ALL_COMMUNITIES 1 // Prints out all the community info at the end of the program execution
 #define PRINT_ITERS 0 // Prints out iters per second on terminal (Note: Is quite expensive)
 /************************** Community routines *******************/
 
@@ -843,7 +843,10 @@ void PartitionRead(FILE * fp, PARTITION * P){
 	printf("Catch all community added into partition\n");
     }
     
-    
+    if(!pCommunityScore){
+	printf("ERORR: Please specify an objective function with -s\n");
+	exit(1);
+    }
     for(int i = 0; i < P->n; ++i){
 	COMMUNITY * C = P->C[i];
 	C->edgesIn = CommunityEdgeCount(C);
@@ -890,14 +893,14 @@ int main(int argc, char *argv[])
 
     PARTITION *P = PartitionAlloc(G);
     
-    int opt, parRead = 0, dir = 1; 
-    while((opt = getopt(argc, argv, "p:s:")) != -1){
+    int opt, parRead = 0, dir = 1, eval = 0; 
+    while((opt = getopt(argc, argv, "p:s:e:")) != -1){
 	switch(opt){
 	    case('p'):
 		// -p means user is giving partition to start from
 		// start hillclimbing immediately
 		printf("Reading partition %s\n", argv[2]);
-		PartitionRead(Fopen(argv[2], "r"), P);
+		PartitionRead(Fopen(optarg, "r"), P);
 		parRead = 1;
 		break;
 	    case('s'):
@@ -917,6 +920,12 @@ int main(int argc, char *argv[])
 		    exit(1);
 		}
 		break; 
+	    case('e'):
+		// -e means eval mode 
+		// Read input file similar to partition read option but eval scores
+		PartitionRead(Fopen(optarg, "r"), P);
+		eval = 1;
+		break;
 	}
     } 
     if(pCommunityScore == NULL){
@@ -926,7 +935,7 @@ int main(int argc, char *argv[])
     }
 
     // If the user does not provide a Partition, create a new one
-    if(!parRead){
+    if(!parRead && !eval){
 #if RANDOM_START
 	int numCommunities = 2; // communities numbered 0 through numCommunities-1 inclusive
 	printf("Starting with %d random communities\n", numCommunities);
@@ -1006,19 +1015,30 @@ int main(int argc, char *argv[])
 #if 0
     HillClimbing(P, 200);
 #else
-    foint f;
-    f.v = P;
+    if(!eval){
+	foint f;
+	f.v = P;
 	
-    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 2000*G->numEdges /*100*/, 0,0,SAR);
-    if(G->n==2390 && G->numEdges==16127) {
-	printf("Hmm, this looks like yeast.el/communities.in, using canned schedule\n");
-	SimAnnealSetSchedule(sa, 1.1, 3);
+	SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 2000*G->numEdges /*100*/, 0,0,SAR);
+	if(parRead == 0){
+	    // If user didn't provide partition run actual sim anneal
+	    if(0 && G->n==2390 && G->numEdges==16127) {
+		printf("Hmm, this looks like yeast.el/communities.in, using canned schedule\n");
+		SimAnnealSetSchedule(sa, 1.1, 3);
+	    }
+	    else
+		SimAnnealAutoSchedule(sa); // to automatically create schedule
+	}
+	else{
+	    // hill climbing
+	    // TODO: Test if partition read actually hill climbs
+	    SimAnnealSetSchedule(sa, 0, 0);
+	}
+	    
+	SimAnnealRun(sa); // returns >0 if success, 0 if not done and can continue, <0 if error
+	SimAnnealFree(sa);
+
     }
-    else
-	SimAnnealAutoSchedule(sa); // to automatically create schedule
-    
-    SimAnnealRun(sa); // returns >0 if success, 0 if not done and can continue, <0 if error
-    SimAnnealFree(sa);
 #endif
     int nodes = 0, biggest = 0, num, which=-1;
     for(int j = 0; j < P->n; ++j){

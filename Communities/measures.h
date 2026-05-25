@@ -11,5 +11,6 @@ double HayesScore(PARTITION * P, COMMUNITY *C, int fakeN);
 double Modularity(PARTITION * P, COMMUNITY *C, int fakeN);
 double Expansion(PARTITION * P, COMMUNITY * C, int fakeN);
 double NormalizedCut(PARTITION * P, COMMUNITY * C, int fakeN);
+double CPM(PARTITION * P, COMMUNITY * C, int fakeN);
 extern int _newCom, _oldCom;
 #endif

@@ -16,6 +16,8 @@ static const SCORINGOPTION scoreOpts[] = {
     {"NewmanAndGirvan", NewmanAndGirvan, 1},
     {"Expansion", Expansion, -1},
     {"NormalizedCut", NormalizedCut, -1},
+    {"CPM", CPM, 1},
+
 };
 
 static const int numScoreOpts = sizeof(scoreOpts) / sizeof(SCORINGOPTION);
