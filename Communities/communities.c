@@ -20,7 +20,7 @@
 #define VERBOSE 0 // 0 = no noisy outpt, 3 = lots, 1..2 is intermediate
 #define DEBUG 0
 #define MOVE_ONLY 0 // Limit perturb to only move 
-#define PRINT_ALL_COMMUNITIES 1 // Prints out all the community info at the end of the program execution
+#define PRINT_ALL_COMMUNITIES 0 // Prints out all the community info at the end of the program execution
 #define PRINT_ITERS 0 // Prints out iters per second on terminal (Note: Is quite expensive)
 /************************** Community routines *******************/
 
@@ -995,7 +995,7 @@ int main(int argc, char *argv[])
 	    C->edgesIn = CommunityEdgeCount(C);
 	    C->edgesOut = CommunityEdgeOutwards(P, C);
 	    double s = pCommunityScore(P, C, C->n); 
-	    printf("Score = %f, edgesIn %d, edgesOut %d\n", s, C->edgesIn, C->edgesOut);
+	    //printf("Score = %f, edgesIn %d, edgesOut %d\n", s, C->edgesIn, C->edgesOut);
 	    C->score = s;
 	    P->total += s; 
 	}
@@ -1009,7 +1009,7 @@ int main(int argc, char *argv[])
     foint f;
     f.v = P;
 	
-    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 500*G->numEdges /*100*/, 0,0,SAR);
+    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 2000*G->numEdges /*100*/, 0,0,SAR);
     if(G->n==2390 && G->numEdges==16127) {
 	printf("Hmm, this looks like yeast.el/communities.in, using canned schedule\n");
 	SimAnnealSetSchedule(sa, 1.1, 3);
