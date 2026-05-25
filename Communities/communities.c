@@ -519,7 +519,7 @@ double PerturbPartition(foint f) {
 	}
     }
     assert(fail);
-	
+
     int comNums = 1;
     for(int i = 0; i < P->G->n; ++i){	    
 	if(P->whichCommunity[i] >= P->n){
@@ -610,11 +610,11 @@ Boolean MaybeAcceptPerturb(Boolean accept, foint f) {
 	printf("_oldCom = %d size %d ", oldCom->id, oldCom->n);
     else
 	printf("oldCom DNE ");
-	printf("numMoved = %d\n", P->numMoved);
-	for(int i = 0; i < P->n; ++i){
-	    COMMUNITY * temp = P->C[i];
-	    printf("Com %d has %d nodes, %d in, %d out, score %g\n", i, temp->n, temp->edgesIn, temp->edgesOut, temp->score);
-	}
+    printf("numMoved = %d\n", P->numMoved);
+    for(int i = 0; i < P->n; ++i){
+	COMMUNITY * temp = P->C[i];
+	printf("Com %d has %d nodes, %d in, %d out, score %g\n", i, temp->n, temp->edgesIn, temp->edgesOut, temp->score);
+    }
 
     printf("_newComN %d, _oldComN %d, oc->in %d, oc->out %d, nc->in %d, nc->out %d\n", _newComN, _oldComN, _oldComIn, _oldComOut, _newComIn, _newComOut);
 
@@ -689,9 +689,9 @@ Boolean MaybeAcceptPerturb(Boolean accept, foint f) {
     }
     
     //For extreme debugging
-    for(int i = 0; i < P->G->n; ++i){
+    /*for(int i = 0; i < P->G->n; ++i){
     	printf("Node %d in Com %d, index %d\n", i, P->whichCommunity[i], P->whichMember[i]);
-    }
+    }*/
 
     int fail = 1; 
     for(int i = 0; i < P->n; ++i){
@@ -895,6 +895,7 @@ int main(int argc, char *argv[])
 	switch(opt){
 	    case('p'):
 		// -p means user is giving partition to start from
+		// start hillclimbing immediately
 		printf("Reading partition %s\n", argv[2]);
 		PartitionRead(Fopen(argv[2], "r"), P);
 		parRead = 1;
@@ -915,12 +916,12 @@ int main(int argc, char *argv[])
 		    printf("ERROR: Provided scoring function name: %s does not exist.\n", optarg);
 		    exit(1);
 		}
-		break;
+		break; 
 	}
     } 
     if(pCommunityScore == NULL){
-	printf("NOTE: Using default Conductance\n");
-	pCommunityScore = Conductance;
+	printf("NOTE: Using default HayesScore\n");
+	pCommunityScore = HayesScore;
 	dir = 1;
     }
 
@@ -994,7 +995,7 @@ int main(int argc, char *argv[])
 	    C->edgesIn = CommunityEdgeCount(C);
 	    C->edgesOut = CommunityEdgeOutwards(P, C);
 	    double s = pCommunityScore(P, C, C->n); 
-	    //printf("Score = %f, edgesIn %d, edgesOut %d\n", s, C->edgesIn, C->edgesOut);
+	    printf("Score = %f, edgesIn %d, edgesOut %d\n", s, C->edgesIn, C->edgesOut);
 	    C->score = s;
 	    P->total += s; 
 	}
@@ -1008,14 +1009,14 @@ int main(int argc, char *argv[])
     foint f;
     f.v = P;
 	
-    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 500*G->numEdges /*100*/,0,0,SAR);
+    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 500*G->numEdges /*100*/, 0,0,SAR);
     if(G->n==2390 && G->numEdges==16127) {
 	printf("Hmm, this looks like yeast.el/communities.in, using canned schedule\n");
 	SimAnnealSetSchedule(sa, 1.1, 3);
     }
     else
 	SimAnnealAutoSchedule(sa); // to automatically create schedule
-    //sa->tInitial = sa->tDecay = sa->temperature = 0; // equivalent to hill climbing
+    
     SimAnnealRun(sa); // returns >0 if success, 0 if not done and can continue, <0 if error
     SimAnnealFree(sa);
 #endif
@@ -1042,7 +1043,7 @@ int main(int argc, char *argv[])
     printf("\n Start ALL COMMUNITIES\n");
     for(int i = 0; i < P->n; ++i){
 	PrintCommunity(P->C[i]);
-	printf("\n");
+	//printf("\n");
     }
 #endif
     printf("Total time elapsed = %.2f seconds\n", (double)(clock() - P->clk)/ CLOCKS_PER_SEC); 

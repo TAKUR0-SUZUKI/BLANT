@@ -19,12 +19,11 @@ double InterEdgeDensity(PARTITION * P, COMMUNITY *C, int fakeN){
     return (fakeN == 0 || tot == 0) ? 0 : (double)C->edgesOut/(fakeN * tot);
 }
 
-double NewmanAndGirvan(PARTITION * P, COMMUNITY * C, int fakeN){
-    int edgeCount = CommunityEdgeCount(C);  
-    double firstTerm = edgeCount / P->G->n;
-    double secondTerm = (edgeCount + CommunityEdgeOutwards(P, C)) / (2 * P->G->n);
+double NewmanAndGirvan(PARTITION * P, COMMUNITY * C, int fakeN){  
+    double firstTerm = C->edgesIn / (double)P->G->numEdges;
+    double secondTerm = (2.0 * C->edgesIn + C->edgesOut) / (2.0 * P->G->numEdges);
     double ans = firstTerm - (secondTerm * secondTerm); 
-    //printf("edgeCount = %d, firstTerm = %f, secondTerm = %f, ans = %f\n", edgeCount, firstTerm, secondTerm, ans); 
+    //printf("edgeCount = %d, P->G->numEdges = %d, firstTerm = %f, secondTerm = %f, ans = %f\n", C->edgesIn, P->G->numEdges, firstTerm, secondTerm, ans); 
     return ans;
 }
 
@@ -38,8 +37,8 @@ double Expansion(PARTITION * P, COMMUNITY * C, int fakeN){
 
 double NormalizedCut(PARTITION * P, COMMUNITY * C, int fakeN){
     // Also always does trivial solution
-    int eIn = CommunityEdgeCount(C);
-    int eOut = CommunityEdgeOutwards(P, C);
+    int eIn = C->edgesIn;
+    int eOut = C->edgesOut;
     int denom1 = 2 * eIn + eOut; 
     int denom2 = 2 * (P->G->n - eIn) + eOut;
     if(denom1 == 0 || denom2 == 0){
@@ -49,8 +48,13 @@ double NormalizedCut(PARTITION * P, COMMUNITY * C, int fakeN){
 }
 
 double Conductance(PARTITION * P, COMMUNITY * C, int fakeN){
-     double denom = C->edgesIn < (P->G->numEdges - C->edgesIn) ? C->edgesIn : P->G->numEdges - C->edgesIn;  
-     return denom == 0 ? 99999 : (double)(C->edgesOut/denom);
+    int denom = 2 * C->edgesIn + C->edgesOut; // Just the sum of degree of all nodes 
+    if(denom == 0){
+	return 99999;
+    }
+    double ans = (double)(C->edgesOut/denom);
+    //printf("Conductance denom =  %d, edgesOut = %d, ans = %g\n", denom, C->edgesOut, ans);
+    return ans;
 }
 
 double HayesScore(PARTITION * P, COMMUNITY *C, int fakeN){ 
