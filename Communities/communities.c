@@ -26,9 +26,9 @@
 #define MOVE_ONLY 1 // only move (the old MOVE_ONLY 1)
 #define MOVE_SWAP 2 // move or swap, 50/50
 #define PERTURB_MODE MOVE_SWAP
-#define PRINT_ALL_COMMUNITIES 0 // Prints out all the community info at the end of the program execution
-#define PRINT_ITERS 1 // Prints out iters per second on terminal (Note: Is quite expensive)
-#define PRINT_ALL_SCORES 1 // Prints out the scores of the partition based on all the functions I've implemented 
+#define PRINT_ALL_COMMUNITIES 1 // Prints out all the community info at the end of the program execution
+#define PRINT_ITERS 0 // Prints out iters per second on terminal (Note: Is quite expensive)
+#define PRINT_ALL_SCORES 0 // Prints out the scores of the partition based on all the functions I've implemented 
 
 /************************** Community routines *******************/
 
@@ -593,7 +593,7 @@ double PerturbPartition(foint f) {
 
 #if PRINT_ITERS
     {
-    static iter;
+    static unsigned long iter;
     double elapsed = (double)(clock() - P->clk) / CLOCKS_PER_SEC;
     double iters_per_sec = P->iters++ / elapsed; 
     if(iter++ % 1000==0) printf("\r%-0f\t",iters_per_sec);
@@ -1167,7 +1167,7 @@ int main(int argc, char *argv[])
 	foint f;
 	f.v = P;
                                                                                                     // Set num iters here	
-	SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 400*G->numEdges /*100*/, 0,0,SAR);
+	SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 600*G->numEdges /*100*/, 0,0,SAR);
 	if(parRead == 0){
 	    // If user didn't provide partition run actual sim anneal
 	    if(G->n==2390 && G->numEdges==16127) {
