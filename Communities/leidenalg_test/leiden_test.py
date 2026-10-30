@@ -2,8 +2,9 @@ import igraph as ig
 import leidenalg as la
 from collections import defaultdict
 from infomap import Infomap
+import sys
 
-G = ig.Graph.Read_Edgelist("../../networks/AThaliana.el", directed=False)
+G = ig.Graph.Read_Edgelist(sys.argv[1], directed=False)
 
 # ---------- scoring ----------
 def report(G, labels, name):
@@ -41,9 +42,6 @@ def report(G, labels, name):
     print(f"  mean intra edge density : {sum(dens)/len(dens):.4f}")
     print(f"  Newman-Girvan Q         : {Q:.4f}\n")'''
 
-
-
-
 if 1:
     leiden = la.find_partition(G, la.ModularityVertexPartition, n_iterations=-1)
     leiden_labels = leiden.membership
@@ -56,8 +54,7 @@ if 1:
             print(node, end = " ")
         print()
 
-if 0:
-
+else:
     im = Infomap(seed=123, num_trials=20, silent=True)
     for u, v in G.get_edgelist():
         im.add_link(u, v)

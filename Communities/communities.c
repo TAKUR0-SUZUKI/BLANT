@@ -637,7 +637,7 @@ double PerturbPartition(foint f) {
 
 #if PRINT_ITERS
     {
-    static int iter;
+    static unsigned long iter;
     // clock() is a system call, so only read it on iterations that actually print
     int itersSoFar = P->iters++;
     if(iter++ % 1000==0) {
