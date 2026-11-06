@@ -28,8 +28,8 @@
 #define MOVE_ONLY 1 // only move (the old MOVE_ONLY 1)
 #define MOVE_SWAP 2 // move or swap, 50/50
 #define PERTURB_MODE MOVE_SWAP
-#define PRINT_ALL_COMMUNITIES 0 // Prints out all the community info at the end of the program execution
-#define PRINT_ITERS 1 // Prints out iters per second on terminal (Note: Is quite expensive)
+#define PRINT_ALL_COMMUNITIES 1  // Prints out all the community info at the end of the program execution
+#define PRINT_ITERS 0 // Prints out iters per second on terminal (Note: Is quite expensive)
 #define PRINT_ALL_SCORES 1 // Prints out the scores of the partition based on all the functions I've implemented
 #define FAST_RAND48 1 // Use the inlined drand48 below instead of libc's (same numbers either way)
 
@@ -974,20 +974,20 @@ void SAR(int iters, foint f){
 	    best_id = com->id;
 	}
 #if VERBOSE > 2 
-	printf("\nCom %d FROM GROUND, In %d Out %d\n", i, in, out);
+	Note("\nCom %d FROM GROUND, In %d Out %d\n", i, in, out);
 #endif
 	if(in != com->edgesIn){
 	    fail = 0;
-	    printf("Com %d edgesIn ERROR: ground %d vs stored %d\n", i, in, com->edgesIn);
+	    Note("Com %d edgesIn ERROR: ground %d vs stored %d\n", i, in, com->edgesIn);
 	}
 	if(out != com->edgesOut){
 	    fail = 0;
-	    printf("Com %d edgesOut ERROR: ground %d vs stored %d\n", i, out, com->edgesOut);
+	    Note("Com %d edgesOut ERROR: ground %d vs stored %d\n", i, out, com->edgesOut);
 	}
 #if 1
 	ground = pCommunityScore(P, com, com->n);
 	if(fabs(ground - com->score) > 0.001){
-	    printf("Com %d ERROR: Ground score %g, stored score %g\n", i, ground, com->score);
+	    Note("Com %d ERROR: Ground score %g, stored score %g\n", i, ground, com->score);
 	    fail = 0;
 	}
 	totalStored += com->score;
@@ -1015,29 +1015,40 @@ void SAR(int iters, foint f){
 // Assumes the P is already properly allocated
 // Directly modifies P
 void PartitionRead(FILE * fp, PARTITION * P){
-    char line[BUFSIZ];
+    char *line = NULL;
+    size_t cap = 0;
     int numCom = 0;
     SET * overlapCheck = SetAlloc(P->G->n);
     SET * checkAll = SetAlloc(P->G->n);
-    while(fgets(line, sizeof(line), fp)){
-	line[strcspn(line, "\n")] = '\0';	
-		
-	char *token = strtok(line, " ");
-	COMMUNITY * C = CommunityAlloc(P->G, numCom++);
-	
-	while(token != NULL){
-	    int node = atof(token);
-	    if(SetIn(overlapCheck, node)){
-		printf("ERROR: %d node is in an overlapping community\nSorry, haven't implemented that yet\n", node);
-		exit(1);
-	    }
-	    SetAdd(overlapCheck, node);
-	    CommunityAddNode(C, P, node);
-	    token = strtok(NULL, " ");
-	    SetAdd(checkAll, node);
-	}
-	PartitionAddCommunity(P, C);
-    } 
+
+    while(getline(&line, &cap, fp) != -1){
+        line[strcspn(line, "\r\n")] = '\0';
+
+        // skip blank lines so they don't create empty communities
+        if(line[0] == '\0') continue;
+
+        COMMUNITY * C = CommunityAlloc(P->G, numCom++);
+
+        char *saveptr = NULL;
+        for(char *token = strtok_r(line, " \t", &saveptr);
+            token != NULL;
+            token = strtok_r(NULL, " \t", &saveptr)){
+            int node = atoi(token);
+            
+            if(node < 0 || node >= P->G->n){
+                printf("ERROR: node %d out of range [0, %d)\n", node, P->G->n);
+                exit(1);
+            }
+            if(SetIn(overlapCheck, node)){
+                printf("ERROR: %d node is in an overlapping community\nSorry, haven't implemented that yet\n", node);
+                exit(1);
+            }
+            SetAdd(overlapCheck, node);
+            CommunityAddNode(C, P, node);
+            SetAdd(checkAll, node);
+        }
+        PartitionAddCommunity(P, C);
+    }
     // Extra community to make sure that all nodes are accounted for
     COMMUNITY * Extra = CommunityAlloc(P->G, numCom++);
     for(int i = 0; i < P->G->n; ++i){
@@ -1206,10 +1217,10 @@ static void RunAnneal(PARTITION *P, int dir, int parRead)
     foint f;
     f.v = P;
                                                                                                 // Set num iters here
-    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 400*G->numEdges /*100*/, 0,0,SAR);
+    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, 60000*G->numEdges /*100*/, 0,0,SAR);
     if(parRead == 0){
 	// If user didn't provide partition run actual sim anneal
-	if(G->n==2390 && G->numEdges==16127) {
+	if(0 && G->n==2390 && G->numEdges==16127) {
 	    printf("Hmm, this looks like yeast.el/communities.in, using canned schedule\n");
 	    SimAnnealSetSchedule(sa, 3, 8);
 	}

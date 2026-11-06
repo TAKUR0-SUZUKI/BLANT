@@ -130,7 +130,8 @@ def main():
     ap.add_argument("--run", required=True, action="append",
                     help="label=path or path; repeat for multiple runs")
     ap.add_argument("--out", default="communities_plot.png")
-    ap.add_argument("--logx", action="store_true", help="log-scale x axis")
+    #ap.add_argument("--logx", action="store_true", help="log-scale x axis")
+    # Defaulting to always logx scale
     ap.add_argument("--include-singletons", action="store_true",
                     help="plot singleton communities with density 0 (default: skip)")
     args = ap.parse_args()
@@ -156,8 +157,8 @@ def main():
                    label=f"{label} (n={len(sizes)}, wtd mean={mean_d:.3f})")
         ax.axhline(mean_d, color=color, linestyle="--", linewidth=1, alpha=0.8)
 
-    if args.logx:
-        ax.set_xscale("log")
+    
+    ax.set_xscale("log")
     ax.set_xlabel("Community size (nodes)")
     ax.set_ylabel("Edge density")
     ax.set_ylim(-0.02, 1.02)
