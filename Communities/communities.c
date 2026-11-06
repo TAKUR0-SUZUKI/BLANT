@@ -31,36 +31,8 @@
 #define PRINT_ALL_COMMUNITIES 0 // Prints out all the community info at the end of the program execution
 #define PRINT_ITERS 1 // Prints out iters per second on terminal (Note: Is quite expensive)
 #define PRINT_ALL_SCORES 1 // Prints out the scores of the partition based on all the functions I've implemented
-#define FAST_RAND48 1 // Use the inlined drand48 below instead of libc's (same numbers either way)
-
-#if FAST_RAND48
-// Exact replacements for libc's drand48/lrand48/mrand48/srand48/seed48: the same 48-bit LCG, giving the same numbers
-// bit for bit, so a given seed still gives the same run. Because they're defined here, they replace libc's for the
-// whole program, libwayne's annealer included, so everything still draws from one stream; but calls from this file
-// are inlined (via the #define below) instead of going through libc's generic __drand48_iterate. There are ~5 calls
-// per iteration, so this is a noticeable share of the run time.
-// (lcong48 isn't replaced: nothing here uses non-default LCG parameters.)
-#define RAND48_A 0x5DEECE66DULL
-#define RAND48_C 0xBULL
-#define RAND48_MASK ((1ULL << 48) - 1)
-unsigned long long _rand48State; // not static: libc declares these functions "leaf", so the compiler may assume they
-				 // never touch this file's static data. Starts at 0, like libc's unseeded state.
-static inline unsigned long long Rand48Next(void) { return _rand48State = (RAND48_A * _rand48State + RAND48_C) & RAND48_MASK; }
-static inline double FastDrand48(void) { return Rand48Next() * (1.0 / (1ULL << 48)); } // exact: 48 bits fit in a double
-static inline void FastSrand48(long seedval) { _rand48State = (((unsigned long long)seedval & 0xffffffffULL) << 16) | 0x330E; }
-double drand48(void) { return FastDrand48(); }
-long lrand48(void) { return (long)(Rand48Next() >> 17); }
-long mrand48(void) { return (long)(int)(Rand48Next() >> 16); }
-void srand48(long seedval) { FastSrand48(seedval); }
-unsigned short *seed48(unsigned short seed16v[3]) {
-    static unsigned short old[3];
-    old[0] = _rand48State & 0xffff; old[1] = (_rand48State >> 16) & 0xffff; old[2] = _rand48State >> 32;
-    _rand48State = seed16v[0] | ((unsigned long long)seed16v[1] << 16) | ((unsigned long long)seed16v[2] << 32);
-    return old;
-}
-#define drand48 FastDrand48
-#define srand48 FastSrand48
-#endif
+// Random numbers come from libwayne's Drand48(): the same stream as drand48() (which libwayne also provides, so
+// its annealer shares it), but inlined, which matters with ~5 draws per iteration.
 
 /************************** Community routines *******************/
 
@@ -436,14 +408,14 @@ static void SaveCommunityInfo(COMMUNITY * oldCom, COMMUNITY * newCom){
 
 // Choose one random node from any community, move it to a new community
 static void MoveRandomNode(PARTITION *P){  
-    int u = P->G->n * drand48();
+    int u = P->G->n * Drand48();
     int oldCom = P->whichCommunity[u];
     COMMUNITY * oc = P->C[oldCom]; 
     _oldCom = oldCom;
     int newCom;
     // Note: MoveRandomNode is not called if there is only 1 community (Split is called instead)
     // This function assumes this and does not check
-    do{newCom = (int)(P->n * drand48());} 
+    do{newCom = (int)(P->n * Drand48());} 
     while(newCom == P->whichCommunity[u]); 
     COMMUNITY * nc = P->C[newCom];
     P->marked[u] = 1;
@@ -517,8 +489,8 @@ static int SwapRandomNodes(PARTITION *P){
     do{
 	if(tries++ >= MAX_SWAP_TRIES)
 	    return 0;
-	u = P->G->n * drand48();
-	v = P->G->n * drand48();
+	u = P->G->n * Drand48();
+	v = P->G->n * Drand48();
     }
     while(P->whichCommunity[u] == P->whichCommunity[v]);
     COMMUNITY * oc = P->C[P->whichCommunity[u]];
@@ -585,7 +557,7 @@ static void SplitCommunity(PARTITION *P, int c_id, int numNodes){
     int u;
     for(int i = 0; i < numNodes; i++){	
 	do{
-	    int index = (int)(drand48() * oldCom->n);
+	    int index = (int)(Drand48() * oldCom->n);
 	    u = oldCom->nodeSet[index];
 	#if DEBUG
 	    printf("u %d, i %d, located %d\n", u, index, P->whichCommunity[u]);
@@ -718,9 +690,9 @@ double PerturbPartition(foint f) {
     #if PERTURB_MODE == MOVE_ONLY
 	int choice = 0;
     #elif PERTURB_MODE == MOVE_SWAP
-	int choice = (drand48() < 0.5) ? 0 : MOVE_OPTION_SWAP; // move or swap, 50/50
+	int choice = (Drand48() < 0.5) ? 0 : MOVE_OPTION_SWAP; // move or swap, 50/50
     #else
-	int choice = drand48() * 3;
+	int choice = Drand48() * 3;
     #endif
     
     if(choice == 0 && P->n > 1){
@@ -732,8 +704,8 @@ double PerturbPartition(foint f) {
 	// Merge two communities
 	int c1, c2;
 	do{
-	    c1 = (int)(drand48() * P->n);
-	    c2 = (int)(drand48() * P->n);
+	    c1 = (int)(Drand48() * P->n);
+	    c2 = (int)(Drand48() * P->n);
 	}
 	while(c1 == c2);
 	// Merge smaller community into bigger community
@@ -758,7 +730,7 @@ double PerturbPartition(foint f) {
 	#define MAX_TRIES 20	
 	int c, numNodes, tries = 0;
 	do
-	    c = drand48() * P->n;
+	    c = Drand48() * P->n;
 	while(P->C[c]->n == 1 && tries++ < MAX_TRIES);
 
 	if(tries >= MAX_TRIES){
@@ -768,7 +740,7 @@ double PerturbPartition(foint f) {
 	    _moveOption = 0;
 	}
 	else{
-	    numNodes = (int)(drand48() * (P->C[c]->n / 2)) + 1;	
+	    numNodes = (int)(Drand48() * (P->C[c]->n / 2)) + 1;	
 	    SplitCommunity(P, c, numNodes);
 	    _moveOption = 2;
 	}
@@ -1090,30 +1062,6 @@ void PrintAllScores(PARTITION * P){
 #define RANDOM_START 0
 #define CHECK_OVERLAP 1
 
-// Same as libwayne's GraphBFS (same nodes, same order, so the BFS start below consumes drand48 identically), except
-// that GraphBFS resets all G->n entries of nodeArray/distArray and allocates a G->n queue on every call, which makes
-// building the initial partition O(G->n * number of communities). Here nodeArray doubles as the FIFO queue and
-// only the entries of distArray this BFS touched are put back to -1, so distArray must be all -1 on entry.
-static int LocalBFS(GRAPH *G, int root, int distance, int *nodeArray, int *distArray)
-{
-    int head = 0, count = 0;
-    distArray[root] = 0;
-    nodeArray[count++] = root;
-    while(head < count) {
-	int v = nodeArray[head++];
-	if(distArray[v] < distance)
-	    for(int j=0; j < G->degree[v]; j++) {
-		int w = G->neighbor[v][j];
-		if(w != v && distArray[w] == -1) {
-		    distArray[w] = distArray[v] + 1;
-		    nodeArray[count++] = w;
-		}
-	    }
-    }
-    for(int i=0; i<count; i++) distArray[nodeArray[i]] = -1;
-    return count;
-}
-
 // If the user does not provide a Partition, create a new one
 static void BuildInitialPartition(PARTITION *P)
 {
@@ -1125,7 +1073,7 @@ static void BuildInitialPartition(PARTITION *P)
     for(i=0; i<numCommunities; i++) PartitionAddCommunity(P, CommunityAlloc(G, i));
 
     for(i=0; i<G->n; i++) {
-	int which = (int)(drand48() * numCommunities);
+	int which = (int)(Drand48() * numCommunities);
 	printf("%d->%d, ", i, which);
 	CommunityAddNode(P->C[which], P, i);
     }
@@ -1137,17 +1085,19 @@ static void BuildInitialPartition(PARTITION *P)
 
     // On the heap: as VLAs these overflow the stack on big graphs
     int *nodeArray = Malloc(sizeof(int) * G->n), *distArray = Malloc(sizeof(int) * G->n), numCom = 0;
-    for(i=0; i<G->n; i++) distArray[i] = -1;
+    for(i=0; i<G->n; i++) distArray[i] = -1; // as GraphBFSLocal requires; it leaves it this way
     while(SetCardinality(nodesUsed) < G->n) {
 	int seed;
-	do { seed = (int)(drand48() * G->n); }
+	do { seed = (int)(Drand48() * G->n); }
 	while(SetIn(nodesUsed, seed));
 	int numAdded=0, distance = 4; // should be far enough
-	int n=LocalBFS(G, seed, distance, nodeArray, distArray); // list of nodes within "distance" of seed
+	// list of nodes within "distance" of seed. GraphBFSLocal gives the same list as GraphBFS, but GraphBFS resets
+	// all G->n entries on every call, which made building the initial partition O(G->n * number of communities)
+	int n=GraphBFSLocal(G, seed, distance, nodeArray, distArray);
 	//printf("BFS(%d[%d])=%d", seed, G->degree[seed], n);
 	assert(n>0 && nodeArray[0]==seed);
 	COMMUNITY *C = CommunityAlloc(G, numCom);
-	for(i=0; i<n; i++) if(!SetIn(nodesUsed,nodeArray[i]) && drand48() > 0.5) {
+	for(i=0; i<n; i++) if(!SetIn(nodesUsed,nodeArray[i]) && Drand48() > 0.5) {
 	    SetAdd(nodesUsed,nodeArray[i]); CommunityAddNode(C, P, nodeArray[i]); ++numAdded;
 	}
 	//printf("%d ", numAdded); fflush(stdout);
@@ -1276,8 +1226,8 @@ static void CopyStream(FILE *from, FILE *to)
     fflush(to);
 }
 
-// Simulated annealing is one long chain of dependent moves, and libwayne's annealer keeps global state (drand48,
-// SimAnnealRun's static progress counter), so a single run can't be split across threads. Instead, run numRuns
+// Simulated annealing is one long chain of dependent moves, and every run draws from drand48's one global stream,
+// so a single run can't be split across threads. Instead, run numRuns
 // independent anneals, each in its own forked process with its own seed (seed, seed+1, ...), all from the same
 // starting point: the -p partition if one was given, else each builds its own random BFS start. Each run's
 // stdout/stderr goes to a temp file; when they're all done, the best run's output is replayed as if it were the
@@ -1426,13 +1376,12 @@ int main(int argc, char *argv[])
     if(numRuns > 1 && !eval){
 	MultiStart(P, numRuns, seed, dir, parRead);
     }
-    
-
-    srand48(seed);
-    if(!parRead && !eval) BuildInitialPartition(P);
-    if(!eval) RunAnneal(P, dir, parRead);
-    PrintResults(P);
-    
+    else{
+	srand48(seed);
+	if(!parRead && !eval) BuildInitialPartition(P);
+	if(!eval) RunAnneal(P, dir, parRead);
+	PrintResults(P);
+    }
     PartitionFree(P);
     GraphFree(G);
     return 0;
