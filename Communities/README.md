@@ -1,4 +1,5 @@
-Communities
+S.A.K.E
+(Simulated Annealing Kommunity Explorer)
 
 To compile first do 
 

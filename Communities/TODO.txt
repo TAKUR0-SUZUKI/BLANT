@@ -1,0 +1,18 @@
+Check the communities they used as well
+
+
+Make sure that all objective functions are all properly included
+
+
+
+Leidenalg
+    Find the paper
+    Find communities they tested on
+    Compare scores
+    Compare graphs
+
+
+Check overlapping MoV (The modularity function for overlapping oin Pablo's thesis/defense)
+
+
+Rename everything to fit SAKE lol
