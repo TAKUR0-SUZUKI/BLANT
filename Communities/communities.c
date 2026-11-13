@@ -36,7 +36,7 @@
 
 /************************** Community routines *******************/
 
-static unsigned _iterFactor = 60000; // will run for _iterFactor * G->numEdges iterations; set with -n
+static unsigned long _iterFactor = 60000; // will run for _iterFactor * G->numEdges iterations; set with -n
 
 double (*pCommunityScore)(PARTITION * P, COMMUNITY * C, int fakeN) = NULL;  
 //static int num_threads; 
@@ -1168,9 +1168,11 @@ static void RunAnneal(PARTITION *P, int dir, int parRead)
 #else
     foint f;
     f.v = P;
+
+    printf("Num iters = %lu\n", _iterFactor * G->numEdges);
                                                                                                 // Set num iters here
     // unsigned long: _iterFactor*numEdges overflows 32 bits on big graphs (eg 60000 * >71582 edges)
-    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, (unsigned long)_iterFactor*G->numEdges, 0,0,SAR);
+    SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, _iterFactor*G->numEdges, 0,0,SAR);
     if(parRead == 0){
 	// If user didn't provide partition run actual sim anneal
 	if(0 && G->n==2390 && G->numEdges==16127) {
