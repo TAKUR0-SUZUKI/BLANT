@@ -37,6 +37,7 @@
 /************************** Community routines *******************/
 
 static unsigned long _iterFactor = 60000; // will run for _iterFactor * G->numEdges iterations; set with -n
+static double _tolerance = 0; // >0: let libwayne choose the iterations per temperature (SimAnnealSetTolerance); set with -T
 
 double (*pCommunityScore)(PARTITION * P, COMMUNITY * C, int fakeN) = NULL;  
 //static int num_threads; 
@@ -1169,7 +1170,10 @@ static void RunAnneal(PARTITION *P, int dir, int parRead)
     foint f;
     f.v = P;
 
-    printf("Num iters = %lu\n", _iterFactor * G->numEdges);
+    if(_tolerance > 0 && parRead == 0)
+	printf("Tolerance = %g (iterations per temperature chosen adaptively)\n", _tolerance);
+    else
+	printf("Num iters = %lu\n", _iterFactor * G->numEdges);
                                                                                                 // Set num iters here
     // unsigned long: _iterFactor*numEdges overflows 32 bits on big graphs (eg 60000 * >71582 edges)
     SIM_ANNEAL *sa = SimAnnealAlloc(dir, f, PerturbPartition, ScorePartition, MaybeAcceptPerturb, _iterFactor*G->numEdges, 0,0,SAR);
@@ -1187,6 +1191,8 @@ static void RunAnneal(PARTITION *P, int dir, int parRead)
 	// TODO: Test if partition read actually hill climbs
 	SimAnnealSetSchedule(sa, 0, 0);
     }
+    // only when annealing: the hill-climbing schedule above (T=0) has nothing to settle
+    if(_tolerance > 0 && parRead == 0) SimAnnealSetTolerance(sa, _tolerance, 0);
 
     SimAnnealRun(sa); // returns >0 if success, 0 if not done and can continue, <0 if error
     SimAnnealFree(sa);
@@ -1337,10 +1343,15 @@ int main(int argc, char *argv[])
 
     int opt, parRead = 0, dir = 1, eval = 0, numRuns = 1, seedGiven = 0;
     unsigned seed = 0;
-    while((opt = getopt(argc, argv, "p:s:e:r:t:n:")) != -1){
+    while((opt = getopt(argc, argv, "p:s:e:r:t:n:T:")) != -1){
 	switch(opt){
 	    case('n'):
 		_iterFactor = atoi(optarg);
+		break;
+	    case('T'):
+		// -T means anneal with a tolerance instead of a fixed number of iterations
+		_tolerance = atof(optarg);
+		if(_tolerance < 0) Fatal("-T tolerance must be >= 0, but is %g", _tolerance);
 		break;
 	    case('p'):
 		// -p means user is giving partition to start from
