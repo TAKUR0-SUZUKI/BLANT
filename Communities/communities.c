@@ -63,17 +63,11 @@ void CommunityFree(COMMUNITY *C) {
     Free(C);
 }
 
+// Prints each node by its name in the input file (G->name), not by its internal index: the graph is read with node
+// names, so internal indices are in order of first appearance in the file and don't match the file's labels.
 void PrintCommunity(COMMUNITY * C){
-    /*char space = '\0';
-    for(int i = 0; i < C->n; ++i) {
-	if(space) putchar(space);
-	printf("%s", C->G->name[C->nodeSet[i]]);
-	space=' ';
-    }
-    printf("\n");*/
-
     for(int i = 0; i < C->n; ++i){
-	printf("%d ", C->nodeSet[i]);
+	printf("%s ", C->G->name[C->nodeSet[i]]);
     }
     printf("\n");
 }
@@ -1008,14 +1002,17 @@ void PartitionRead(FILE * fp, PARTITION * P){
         for(char *token = strtok_r(line, " \t", &saveptr);
             token != NULL;
             token = strtok_r(NULL, " \t", &saveptr)){
-            int node = atoi(token);
-            
-            if(node < 0 || node >= P->G->n){
-                printf("ERROR: node %d out of range [0, %d)\n", node, P->G->n);
+            // Tokens are node names as they appear in the graph file, the same labels PrintCommunity prints and other
+            // tools (eg leidenalg) use. Look up the internal index: it is NOT atoi(token), since internal indices are
+            // assigned in order of first appearance in the graph file.
+            foint info;
+            if(!TreeLookup(P->G->nameDict, (foint)token, &info)){
+                printf("ERROR: node %s is not in the graph\n", token);
                 exit(1);
             }
+            int node = info.i;
             if(SetIn(overlapCheck, node)){
-                printf("ERROR: %d node is in an overlapping community\nSorry, haven't implemented that yet\n", node);
+                printf("ERROR: %s node is in an overlapping community\nSorry, haven't implemented that yet\n", token);
                 exit(1);
             }
             SetAdd(overlapCheck, node);
@@ -1028,7 +1025,7 @@ void PartitionRead(FILE * fp, PARTITION * P){
     COMMUNITY * Extra = CommunityAlloc(P->G, numCom++);
     for(int i = 0; i < P->G->n; ++i){
 	if(!SetIn(checkAll, i)){
-	    printf("WARNING: Node %d is not in any community. Putting it into catch all\n", i);
+	    printf("WARNING: Node %s is not in any community. Putting it into catch all\n", P->G->name[i]);
 	    CommunityAddNode(Extra, P, i);
 	}
     }
