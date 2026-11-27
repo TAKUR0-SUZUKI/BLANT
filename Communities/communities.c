@@ -27,7 +27,9 @@
 #define PERTURB_ALL 0 // move, merge and split (the old MOVE_ONLY 0)
 #define MOVE_ONLY 1 // only move (the old MOVE_ONLY 1)
 #define MOVE_SWAP 2 // move or swap, 50/50
-#define PERTURB_MODE MOVE_SWAP
+#define PERTURB_MODE MOVE_SWAP // the default; choose another at run time with -m all|move|swap
+static int _perturbMode = PERTURB_MODE;
+static const char *_perturbModeName[] = {"all", "move", "swap"}; // indexed by PERTURB_ALL, MOVE_ONLY, MOVE_SWAP
 #define PRINT_ALL_COMMUNITIES 1  // Prints out all the community info at the end of the program execution
 #define PRINT_ITERS 0 // Prints out iters per second on terminal (Note: Is quite expensive)
 #define PRINT_ALL_SCORES 1 // Prints out the scores of the partition based on all the functions I've implemented
@@ -538,7 +540,10 @@ static void MergeCommunities(PARTITION *P, int c1, int c2){
     assert(P->numMoved == _oldComN); 
 }
 
-// Splits P->C[c_id] into a new community that has numNodes random nodes from the old community
+// Splits off a connected piece of P->C[c_id], of up to numNodes nodes, into a new community. The piece is grown by
+// BFS from a random member, staying inside the community (it's smaller than numNodes only if that member's part of
+// the community is). Splitting off random members instead almost never yields a connected piece, so such a split
+// is almost never an improvement, yet it costs time proportional to numNodes to propose.
 static void SplitCommunity(PARTITION *P, int c_id, int numNodes){
     COMMUNITY *oldCom = P->C[c_id];
     assert(numNodes > 0);
@@ -551,27 +556,28 @@ static void SplitCommunity(PARTITION *P, int c_id, int numNodes){
     SaveCommunityInfo(oldCom, newCom);
     PartitionAddCommunity(P, newCom);
 
-    int u;
-    for(int i = 0; i < numNodes; i++){	
-	do{
-	    int index = (int)(Drand48() * oldCom->n);
-	    u = oldCom->nodeSet[index];
-	#if DEBUG
-	    printf("u %d, i %d, located %d\n", u, index, P->whichCommunity[u]);
-	#endif
+    // BFS, using toMove itself as the queue; nobody has moved yet, so whichCommunity still says who is in c_id
+    int u = oldCom->nodeSet[(int)(Drand48() * oldCom->n)];
+    P->marked[u] = 1;
+    P->toMove[P->numMoved++] = u;
+    for(int head = 0; head < P->numMoved && P->numMoved < numNodes; head++){
+	u = P->toMove[head];
+	for(int i = 0, deg = P->G->degree[u]; i < deg && P->numMoved < numNodes; i++){
+	    int w = P->G->neighbor[u][i];
+	    if(P->whichCommunity[w] == c_id && !P->marked[w]){
+		P->marked[w] = 1;
+		P->toMove[P->numMoved++] = w;
+	    }
 	}
-	while(P->marked[u]);
-	P->marked[u] = 1;
-	P->toMove[P->numMoved++] = u;
-    } 
+    }
 
     for(int i = 0; i < P->numMoved; ++i){
 	MoveOneNode(P, P->toMove[i], P->n - 1);
     }
 
-    _oldCom = c_id; 
+    _oldCom = c_id;
     _newCom = P->n-1;
-    assert(P->numMoved == numNodes);
+    assert(P->numMoved >= 1 && P->numMoved <= numNodes);
     }
 
 double ScorePartition(Boolean global, foint f){
@@ -601,7 +607,10 @@ double ScorePartition(Boolean global, foint f){
 		COMMUNITY * old = P->C[_oldCom];
 		double oldBefore = old->score;
 		int testN = _oldComN - sizeChange;
-		double oldScore = pCommunityScore(P, old, testN);
+		// A community this perturbation empties (a merge, or moving out its last node) is deleted on accept, so
+		// it contributes 0. Don't ask the score function about an empty community: Conductance and NormalizedCut
+		// return 99999 for one (Expansion 9999999), which made every merge look terrible and never be accepted.
+		double oldScore = testN > 0 ? pCommunityScore(P, old, testN) : 0;
 		_oldDiff = oldScore - oldBefore;
 		P->total += _oldDiff;
 #if VERBOSE > 1
@@ -684,13 +693,14 @@ double PerturbPartition(foint f) {
     assert(comNums);
 #endif
 
-    #if PERTURB_MODE == MOVE_ONLY
-	int choice = 0;
-    #elif PERTURB_MODE == MOVE_SWAP
-	int choice = (Drand48() < 0.5) ? 0 : MOVE_OPTION_SWAP; // move or swap, 50/50
-    #else
-	int choice = Drand48() * 3;
-    #endif
+    // Each mode draws exactly the random numbers it did as a compile-time PERTURB_MODE, so seeded runs are unchanged
+    int choice;
+    if(_perturbMode == MOVE_ONLY)
+	choice = 0;
+    else if(_perturbMode == MOVE_SWAP)
+	choice = (Drand48() < 0.5) ? 0 : MOVE_OPTION_SWAP; // move or swap, 50/50
+    else
+	choice = Drand48() * 3; // move, merge or split
     
     if(choice == 0 && P->n > 1){
 	// Move one node only
@@ -698,19 +708,29 @@ double PerturbPartition(foint f) {
 	_moveOption = 0;	
     }
     else if(choice == 1 && P->n > 1){
-	// Merge two communities
-	int c1, c2;
-	do{
-	    c1 = (int)(Drand48() * P->n);
-	    c2 = (int)(Drand48() * P->n);
+	// Merge two communities that share an edge: those at the ends of a random edge crossing between communities.
+	// (Merging two random communities, which usually share no edge, is never an improvement under any of our
+	// measures, but costs time proportional to the smaller community's size to propose.)
+	int c1 = -1, c2 = -1;
+	for(int tries = 0; P->G->numEdges > 0 && tries < MAX_SWAP_TRIES; tries++){
+	    int e = (int)(P->G->numEdges * Drand48());
+	    c1 = P->whichCommunity[P->G->edgeList[2*e]];
+	    c2 = P->whichCommunity[P->G->edgeList[2*e+1]];
+	    if(c1 != c2) break;
 	}
-	while(c1 == c2);
-	// Merge smaller community into bigger community
-	if(P->C[c1]->n > P->C[c2]->n)
-	    MergeCommunities(P, c1, c2);
-	else
-	    MergeCommunities(P, c2, c1);
-	_moveOption = 1;
+	if(c1 != c2){
+	    // Merge smaller community into bigger community
+	    if(P->C[c1]->n > P->C[c2]->n)
+		MergeCommunities(P, c1, c2);
+	    else
+		MergeCommunities(P, c2, c1);
+	    _moveOption = 1;
+	}
+	else{
+	    // No edge between communities found (eg each community is a separate connected component): just move
+	    MoveRandomNode(P);
+	    _moveOption = 0;
+	}
     }
     else if(choice == MOVE_OPTION_SWAP && P->n > 1){
 	// Swap two nodes that are in different communities
@@ -1318,13 +1338,6 @@ int main(int argc, char *argv[])
     //num_threads = sysconf(_SC_NPROCESSORS_ONLN);
     printf("Running with PARANOID_ASSERTS=%d, NDEBUG=%d\n", PARANOID_ASSERTS, NDEBUG);
 
-#if PERTURB_MODE == MOVE_ONLY
-    printf("Using MOVE_ONLY\n");
-#elif PERTURB_MODE == MOVE_SWAP
-    printf("Using MOVE_SWAP\n");
-#else
-    printf("Using All. WARNING: BROKEN\n");
-#endif
     pCommunityScore = HayesScore;
 
     Boolean sparse=maybe, supportNames = true;
@@ -1340,10 +1353,16 @@ int main(int argc, char *argv[])
 
     int opt, parRead = 0, dir = 1, eval = 0, numRuns = 1, seedGiven = 0;
     unsigned seed = 0;
-    while((opt = getopt(argc, argv, "p:s:e:r:t:n:T:")) != -1){
+    while((opt = getopt(argc, argv, "p:s:e:r:t:n:T:m:")) != -1){
 	switch(opt){
 	    case('n'):
 		_iterFactor = atoi(optarg);
+		break;
+	    case('m'):
+		// -m chooses the perturbations: all (move, merge, split), move (move only), or swap (move or swap)
+		for(_perturbMode = 0; _perturbMode < 3; _perturbMode++)
+		    if(strcmp(optarg, _perturbModeName[_perturbMode]) == 0) break;
+		if(_perturbMode == 3) Fatal("-m must be all, move or swap, but is \"%s\"", optarg);
 		break;
 	    case('T'):
 		// -T means anneal with a tolerance instead of a fixed number of iterations
@@ -1397,6 +1416,7 @@ int main(int argc, char *argv[])
 	pCommunityScore = HayesScore;
 	dir = 1;
     }
+    printf("Using perturbation mode \"%s\" (-m)\n", _perturbModeName[_perturbMode]);
     if(!seedGiven) seed = GetFancySeed(false);
     printf("Random seed %u\n", seed);
 

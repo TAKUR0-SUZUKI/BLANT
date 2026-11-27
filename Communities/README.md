@@ -25,6 +25,8 @@ OPTIONS
 -s Choose a scoring function
 -p Provide a partition to start from 
 -r Random seed to use (default: a fancy seed, printed as "Random seed N"), so a run can be reproduced exactly
+-m Perturbation mode: swap (move a node or swap two, the default), move (move a node only), or all (move a node,
+   merge two communities, or split one). Combine with -t to run several in parallel, eg -m all -t 8
 -n Iteration factor: anneal for (factor x number of edges) iterations (default 60000)
 -T Tolerance (like SANA's -tolerance): instead of a fixed number of iterations, stay at each temperature until the
    score settles there, so temperatures where the score is changing get more iterations and flat ones fewer.
